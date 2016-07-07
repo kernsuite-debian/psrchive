@@ -1,0 +1,32 @@
+#!/bin/csh -ef
+
+# @configure_input@
+
+mkdir -p @prefix@/src
+cd @prefix@/src
+
+if ( ! -f psrcat.tar.gz ) then
+  @download@ http://www.atnf.csiro.au/people/pulsar/psrcat/psrcat_pkg.tar.gz
+endif
+
+gunzip -c psrcat_pkg.tar.gz | tar xvf -
+cd psrcat_tar
+
+csh makeit
+
+mkdir -p @prefix@/bin
+mv psrcat @prefix@/bin
+
+mkdir -p @prefix@/psrcat
+
+mv psrcat.db @prefix@/psrcat
+
+echo
+echo
+echo "PSRCAT installation completed"
+echo
+echo "To use psrcat, please set the environment variable"
+echo
+echo 'setenv PSRCAT_FILE @prefix@/psrcat/psrcat.db'
+echo
+echo
