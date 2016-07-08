@@ -2,7 +2,7 @@ Source: psrchive
 Section: science
 Priority: optional
 Maintainer: Gijs Molenaar (launchpad ppa build key) <gijs@pythonic.nl>
-Build-Depends: debhelper (>=9), libfftw3-dev, libpgsbox5, libcfitsio-dev
+Build-Depends: debhelper (>=9), libfftw3-dev, libpgsbox5, libcfitsio-dev, gfortran
 Standards-Version: 3.9.6
 Homepage: http://psrchive.sourceforge.net/
 
