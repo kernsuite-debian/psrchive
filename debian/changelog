@@ -1,3 +1,9 @@
+psrchive (2012.12+20161017-1) xenial; urgency=medium
+
+  * synced with upstream
+
+ -- Gijs Molenaar (launchpad ppa build key) <gijs@pythonic.nl>  Fri, 04 Nov 2016 13:55:04 +0100
+
 psrchive (2012.12+20160608-1kern1) xenial; urgency=medium
 
   * add gsl-dev build conflict
