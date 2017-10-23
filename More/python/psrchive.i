@@ -34,6 +34,7 @@
 #include "Pulsar/PatchTime.h"
 #include "Pulsar/Contemporaneity.h"
 #include "Pulsar/Predictor.h"
+#include "polyco.h"
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -49,6 +50,7 @@
 // For some reason SWIG is not picking up the namespace for the emitted
 // code, hence this kluge allowing an unqualified reference to Phase
 using Pulsar::Phase;
+using Pulsar::Predictor;
 
 %}
 
@@ -204,6 +206,10 @@ void pointer_tracker_remove(Reference::Able *ptr) {
   $1 = (long double)(PyFloat_AsDouble($input));
 }
 
+// For some reason SWIG thinks polyco is abstract even though it's not.
+// This forces it to reconsider.
+%feature("notabstract") polyco;
+
 // Header files included here will be wrapped
 %include "ReferenceAble.h"
 %include "Pulsar/Container.h"
@@ -226,6 +232,7 @@ void pointer_tracker_remove(Reference::Able *ptr) {
 %include "MJD.h"
 %include "Phase.h"
 %include "Pulsar/Predictor.h"
+%include "polyco.h"
 
 // Some useful free functions 
 
@@ -351,6 +358,15 @@ double get_tobs(const char* filename) {
         Pulsar::Pointing *p = self->get<Pulsar::Pointing>();
         if (p==NULL) return 0.0;
         return p->get_telescope_azimuth().getDegrees();
+    }
+    double get_parallactic_angle() {
+        Pulsar::Pointing *p = self->get<Pulsar::Pointing>();
+        if (p==NULL) return 0.0;
+        p->update(self);
+        return p->get_parallactic_angle().getDegrees();
+    }
+    void set_verbose() {
+        self->verbose = 1;
     }
 
     // Interface to Barycentre

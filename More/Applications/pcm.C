@@ -14,6 +14,7 @@
 
 #include "Pulsar/ReceptionCalibrator.h"
 #include "Pulsar/PulsarCalibrator.h"
+#include "Pulsar/FluxCalibrator.h"
 #include "Pulsar/SystemCalibratorUnloader.h"
 
 #include "Pulsar/Database.h"
@@ -71,14 +72,17 @@ void usage ()
     "  -m model   receiver model name: e.g. bri00e19 or van04e18 [default]\n"
     "  -l solver  solver: MEAL [default] of GSL \n"
     "  -I impure  load impurity transformation from file \n"
+    "  -x         estimate calibrator Stokes parameter using fluxcal solution \n"
     "  -y         always trust the Pointing::feed_angle attribute \n"
     "  -Z         ignore the sky coordinates of PolnCal observations \n"
     "\n"
     "  -C meta    filename with list of calibrator files \n"
     "  -d dbase   filename of Calibration Database \n"
     "  -M meta    filename with list of pulsar files \n"
+    "  -W meta2   filename with list of other data files to be calibrated \n"
     "  -j job     preprocessing job \n"
     "  -J jobs    multiple preprocessing jobs in 'jobs' file \n"
+    "  -K sigma       Reject outliers when computing CAL levels \n"
     "\n"
     "MEM: Measurement Equation Modeling \n"
     "  -- observations of an unknown source as in van Straten (2004)\n"
@@ -122,6 +126,7 @@ void usage ()
     "  -- observations of a known source as in van Straten (2013) \n"
     "\n"
     "  -S fname   filename of calibrated standard \n"
+    "  -G         Fscrunch data to match number of channels of standard \n"
     "  -H         allow software to choose the number of harmonics \n"
     "  -n nbin    set the number of harmonics to use as input states \n"
     "  -1         solve independently for each observation \n"
@@ -281,7 +286,13 @@ void plot_constraints (Pulsar::SystemCalibratorPlotter& plotter,
     else
       cpgsvp (.25,.75,.15,.95);
 
-    plotter.plot_cal_constraints (ichan);
+    bool page = false;
+
+    if (plotter.get_calibrator()->has_cal())
+    {
+      plotter.plot_cal_constraints (ichan);
+      page = true;
+    }
 
     // cerr << "pcm: nstate=" << nstate << endl;
     for (unsigned istate=0; istate<nstate; istate++)
@@ -289,10 +300,12 @@ void plot_constraints (Pulsar::SystemCalibratorPlotter& plotter,
       if (!plotter.get_calibrator()->get_state_is_pulsar (istate))
 	continue;
 
-      cpgpage();
+      if (page)
+        cpgpage();
 
       // cerr << "ichan=" << ichan << " istate=" << plot_state << endl;
       plotter.plot_psr_constraints (ichan, istate);
+      page = true;
     }
 
     cpgend ();
@@ -344,6 +357,9 @@ vector<string> calibrator_filenames;
 // Each flux calibrator observation may have unique values of I, Q & U
 bool multiple_flux_calibrators = false;
 
+// Derive first guess of calibrator Stokes parameters from fluxcal solution
+bool use_fluxcal_stokes = false;
+
 bool measure_cal_V = true;
 bool measure_cal_Q = true;
 bool equal_ellipticities = false;
@@ -376,6 +392,8 @@ int main (int argc, char *argv[])
 }
 
 Reference::To< MEAL::Real4 > impurity;
+Reference::To< MEAL::Complex2 > response;
+
 Reference::To< MEAL::Univariate<MEAL::Scalar> > gain_variation;
 Reference::To< MEAL::Univariate<MEAL::Scalar> > diff_gain_variation;
 Reference::To< MEAL::Univariate<MEAL::Scalar> > diff_phase_variation;
@@ -539,6 +557,8 @@ static bool plot_total = false;
 static bool plot_result = false;
 static bool publication_plots = false;
 
+static unsigned solver_verbosity = 0;
+
 void enable_diagnostic (const string& name)
 {
   if (name == "prefit")
@@ -562,6 +582,9 @@ void enable_diagnostic (const string& name)
   else if (name == "result")
     plot_result = true;
 
+  else if (name == "solver")
+    solver_verbosity = 1;
+  
   else
   {
     cerr << "pcm: unrecognized diagnostic name '" << name << "'" << endl;
@@ -589,8 +612,15 @@ bool check_coordinates = true;
 
 bool must_have_cals = true;
 
+// threshold used to reject outliers while computing CAL levels
+float outlier_threshold = 0.0;
+ 
 // name of file containing list of calibrator Archive filenames
 char* calfile = NULL;
+
+/* Flux calibrator solution from which first guess of calibrator Stokes
+   parameters will be derived */
+Reference::To<Pulsar::FluxCalibrator> flux_cal;
 
 void load_calibrator_database ();
 
@@ -605,6 +635,9 @@ int actual_main (int argc, char *argv[]) try
   // name of file containing list of Archive filenames
   char* metafile = NULL;
 
+  // name of file containing list of filenames to be calibrated
+  char* calibrate_these = NULL;
+  
   // name of file from which phase bins will be chosen
   char* binfile = NULL;
 
@@ -615,12 +648,13 @@ int actual_main (int argc, char *argv[]) try
   vector<string> equation_configuration;
 
   bool unload_each_calibrated = true;
+  bool fscrunch_data_to_template = false;
 
   int gotc = 0;
 
   const char* args =
-    "1A:a:B:b:C:c:D:d:E:e:fF:gHhI:i:j:J:kL:l:"
-    "M:m:Nn:O:o:Pp:qR:rS:st:T:u:U:vV:X:yzZ";
+    "1A:a:B:b:C:c:D:d:E:e:F:fGgHhI:i:j:J:K:kL:l:"
+    "M:m:Nn:O:o:Pp:qR:rS:st:T:u:U:vV:wW:xX:yzZ";
 
   while ((gotc = getopt(argc, argv, args)) != -1)
   {
@@ -682,6 +716,10 @@ int actual_main (int argc, char *argv[]) try
       multiple_flux_calibrators = true;
       break;
 
+    case 'G':
+      fscrunch_data_to_template = true;
+      break;
+      
     case 'g':
       independent_gains = true;
       break;
@@ -729,7 +767,11 @@ int actual_main (int argc, char *argv[]) try
     case 'k':
       equal_ellipticities = true;
       break;
-
+      
+    case 'K':
+      outlier_threshold = atof(optarg);
+      break;
+      
     case 'L':
       polncal_hours = atof (optarg);
       break;
@@ -739,6 +781,18 @@ int actual_main (int argc, char *argv[]) try
       break;
 
     case 'm':
+
+      try {
+	response = Pulsar::load_transformation (optarg);
+	cerr << "pcm: response model loaded from " << optarg << endl;
+	break;
+      }
+      catch (Error& error)
+	{
+	  if (verbose)
+	    cerr << "pcm: error" << error << endl;
+	}
+      
       model_type = Pulsar::Calibrator::Type::factory (optarg);
       break;
       
@@ -848,6 +902,18 @@ int actual_main (int argc, char *argv[]) try
       measure_cal_V = false;
       break;
 
+    case 'w':
+      must_have_cals = false;
+      break;
+
+    case 'W':
+      calibrate_these = optarg;
+      break;
+      
+    case 'x':
+      use_fluxcal_stokes = true;
+      break;
+      
     case 'X':
       invalid_chisq = atof (optarg);
       break;
@@ -898,11 +964,17 @@ int actual_main (int argc, char *argv[]) try
 
   if (!template_filename && phmin == phmax && !binfile)
   {
-    cerr << "pcm: In mode A, at least one of the following options"
+    cerr << "pcm: In MEM mode, at least one of the following options"
       " must be specified:\n"
       " -p min,max  Choose constraints from the specified pulse phase range \n"
       " -c archive  Choose optimal constraints from the specified archive \n"
 	 << endl;
+    return -1;
+  }
+
+  if (!template_filename && fscrunch_data_to_template)
+  {
+    cerr << "pcm: In MEM mode, the -G option is not supported" << endl;
     return -1;
   }
 
@@ -962,9 +1034,13 @@ int actual_main (int argc, char *argv[]) try
 
       model->set_nthread (nthread);
       model->set_report_projection (true);
-
+      model->set_outlier_threshold (outlier_threshold);
+      
       model->set_report_initial_state (prefit_report);
       model->set_report_input_data (input_data);
+
+      if (response)
+	model->set_response( response );
 
       if (impurity)
 	model->set_impurity( impurity );
@@ -1001,6 +1077,8 @@ int actual_main (int argc, char *argv[]) try
       if (least_squares)
 	model->set_solver( new_solver(least_squares) );
 
+      model->get_solver()->set_verbosity( solver_verbosity );
+      
       if (retry_chisq)
         model->set_retry_reduced_chisq( retry_chisq );
 
@@ -1080,7 +1158,17 @@ int actual_main (int argc, char *argv[]) try
 
 #endif
 
+    if (fscrunch_data_to_template &&
+	model->get_nchan() != archive->get_nchan())
+    {
+      cerr << "pcm: frequency integrating data (nchan=" << archive->get_nchan()
+	   << ") to match calibrator (nchan=" << model->get_nchan()
+	   << ")" << endl;
+      archive->fscrunch_to_nchan (model->get_nchan());
+    }
+	 
     cerr << "pcm: adding observation" << endl;
+
     model->preprocess( archive );
     model->add_observation( archive );
 
@@ -1198,7 +1286,7 @@ int actual_main (int argc, char *argv[]) try
 
 #if HAVE_PGPLOT
 
-  if (plot_result)
+  if (plot_result) try
   {
     plot_state (model, "result");
 
@@ -1217,22 +1305,40 @@ int actual_main (int argc, char *argv[]) try
       cpgend ();
     }
   }
+  catch (Error& error)
+  {
+    cerr << "pcm: error while plotting results" << error << endl;
+  }
 
-  if (plot_residual && model->get_nstate_pulsar())
+  if (plot_residual && model->get_nstate_pulsar()) try
   {
     plotter.set_plot_residual (true);
     
     cerr << "pcm: plotting pulsar constraints with model" << endl;
     plot_constraints (plotter, model->get_nchan());
   }
+  catch (Error& error)
+  {
+    cerr << "pcm: error while plotting residual" << error << endl;
+  }
 
 #endif // HAVE_PGPLOT
 
-  for (unsigned ical=0; ical < calibrator_filenames.size(); ical++)
-    dirglob (&filenames, calibrator_filenames[ical]);
+  if (calibrate_these)
+  {
+    filenames.clear();
+    stringfload (&filenames, calibrate_these);
+    cerr << "pcm: calibrating " << filenames.size() << " files listed in "
+	 << calibrate_these << endl;
+  }
+  else
+  {
+    for (unsigned ical=0; ical < calibrator_filenames.size(); ical++)
+      dirglob (&filenames, calibrator_filenames[ical]);
   
-  cerr << "pcm: calibrating archives (PSR and CAL)" << endl;
-
+    cerr << "pcm: calibrating archives (PSR and CAL)" << endl;
+  }
+    
   for (unsigned i = 0; i < filenames.size(); i++) try
   {
     if (verbose)
@@ -1256,7 +1362,7 @@ int actual_main (int argc, char *argv[]) try
       cout << "New file " << newname << " unloaded" << endl;
     }
 
-    if (archive->get_type() == Signal::Pulsar)
+    if (!calibrate_these && archive->get_type() == Signal::Pulsar)
     {
       if (verbose)
 	cerr << "pcm: correct and add to calibrated total" << endl;
@@ -1373,6 +1479,9 @@ SystemCalibrator* measurement_equation_modeling (const char* binfile,
 
   model->multiple_flux_calibrators = multiple_flux_calibrators;
 
+  if (flux_cal)
+    model->set_flux_calibrator (flux_cal);
+  
   cerr << "pcm: set calibrators" << endl;
   model->set_calibrators (calibrator_filenames);
 
@@ -1523,7 +1632,17 @@ void load_calibrator_database () try
     return;
     
   Reference::To<Pulsar::Archive> archive;
-  archive = Pulsar::Archive::load( filenames.front() );
+  while (filenames.size()) try
+  {
+    archive = Pulsar::Archive::load( filenames.front() );
+    break;
+  }
+  catch (Error& error)
+  {
+    cerr << "load_calibrator_database: error loading " << filenames.front()
+         << endl << error << endl;
+    filenames.erase( filenames.begin() );
+  }
 
   get_span ();
 
@@ -1571,25 +1690,36 @@ void load_calibrator_database () try
     
     if (must_have_cals && !calfile)
     {
-      cerr << "pcm: cannot continue" << endl;
+      cerr << "pcm: cannot continue (disable this check with -)" << endl;
       exit (-1);
     }
   }
 
+  if (use_fluxcal_stokes) try
+  {
+    flux_cal = database->generateFluxCalibrator (archive);
+  }
+  catch (Error& error)
+  {
+    cerr << "pcm: failed to generate FluxCalibrator solution"
+	 << error << endl;
+    exit (-1);
+  }
+  
   if (template_filename)
-    cerr << "pcm: no need for flux calibrator observations" << endl;
+    cerr << "pcm: no need for on-source flux calibrator observations" << endl;
   else
   {
     double span_days = (end_time - start_time).in_days();
     double search_days = 0.5*span_days + fluxcal_days;
 
-    cerr << "pcm: searching for flux calibrator observations"
-      " within " << search_days << " days of midtime" << endl;
-
-    criteria.entry.obsType = Signal::FluxCalOn;
     criteria.check_coordinates = false;
     criteria.minutes_apart = search_days * 24.0 * 60.0;
+    criteria.entry.obsType = Signal::FluxCalOn;
     
+    cerr << "pcm: searching for on-source flux calibrator observations"
+      " within " << search_days << " days of midtime" << endl;
+
     database->all_matching (criteria, oncals);
   
     if (oncals.size() == poln_cals)

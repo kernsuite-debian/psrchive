@@ -21,7 +21,7 @@ class TextIndex : public Reference::Able
   //! Construct from string of the form 'name=[range]'
   TextIndex (const std::string& named_range);
 
-  //! Set the interface of the container to which the named index applies
+  //! Set the interface to the container to which the named index applies
   void set_container (TextInterface::Parser*);
 
   //! Set the name of the index dimension size in the container interface
@@ -34,8 +34,14 @@ class TextIndex : public Reference::Able
   //! Get the index command for the specified index
   std::string get_index (unsigned i);
 
+  //! Get the index command for the current index
+  std::string get_current_index ();
+  
  protected:
 
+  //! The text interface to the container
+  Reference::To< TextInterface::Parser, false > container;
+  
   //! The name of the index
   std::string name;
 

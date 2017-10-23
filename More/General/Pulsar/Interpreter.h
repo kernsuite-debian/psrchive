@@ -20,7 +20,8 @@ namespace Pulsar {
   
   class Archive;
   class Weight;
-
+  class ScatteredPowerCorrection;
+  
   //! Pulsar data processing command language interpreter
   /*!
     The Interpreter class is a command language interpreter that
@@ -191,6 +192,9 @@ namespace Pulsar {
     //! toggle the clober flag
     std::string toggle_clobber (const std::string& args);
 
+    //! toggle the evaluate flag
+    std::string toggle_evaluate (const std::string& args);
+
     //! Extensions to the Interpreter
     class Extension;
 
@@ -221,6 +225,9 @@ namespace Pulsar {
     
     //! allow the user to overwrite existing named archive
     bool clobber;
+
+    // commands that request expansion will have arguments evaluated
+    bool evaluation_enabled;
     
     //! time various operations
     bool stopwatch;
@@ -238,7 +245,7 @@ namespace Pulsar {
     std::string unload_path;
 
     //! All methods should call this method to parse the arguments
-    std::vector<std::string> setup (const std::string& args, bool expand = true);
+    std::vector<std::string> setup (const std::string& args, bool expand=true);
 
     //! All methods should return via the response methods
     std::string response (Status status, const std::string& text = "");
@@ -261,6 +268,10 @@ namespace Pulsar {
 
     //! the current archive interface
     Reference::To<TextInterface::Parser> current_interface;
+
+    //! The Scattered Power Correction algorithm
+    Reference::To<ScatteredPowerCorrection> spc_algorithm;
+    
   };
   
 }
