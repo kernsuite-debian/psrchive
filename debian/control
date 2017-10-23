@@ -4,11 +4,17 @@ Priority: optional
 Maintainer: Gijs Molenaar (launchpad ppa build key) <gijs@pythonic.nl>
 Build-Depends: debhelper (>=9), libfftw3-dev, libpgsbox5, libcfitsio-dev,
  gfortran, dh-autoreconf, tempo2
-#Build-Conflicts: libgsl-dev 
-Standards-Version: 3.9.6
+Standards-Version: 3.9.7
 Homepage: http://psrchive.sourceforge.net/
+Vcs-Git: https://github.com/kernsuite-debian/psrchive
+Vcs-Browser: https://github.com/kernsuite-debian/psrchive
 
 Package: psrchive
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: C++ development library for the analysis of pulsar astronomical data
+  It implements an extensive range of algorithms for use in pulsar timing,
+  scintillation studies, polarimetric calibration, single-pulse work, RFI
+  mitigation, etc. These tools are utilized by a powerful suite of user-end
+  programs that come with the library. The software is described in Hotan, van
+  Straten & Manchester (2004).

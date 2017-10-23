@@ -1,10 +1,10 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: psrchive
-Source: <url://example.com>
+Source: http://psrchive.sourceforge.net/
 
 Files: *
-Copyright: <years> <put author's name and email here>
-License: <special license>
+Copyright: 2003-2004 Lawrence E. Rosen
+License: AFL-1.2
 
 Files: debian/*
 Copyright: 2017 Gijs Molenaar <gijs@pythonic.nl>
