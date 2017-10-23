@@ -16,13 +16,14 @@
 #include "T2Observatory.h"
 #endif
 
-#include <ostream>
+#include <iostream>
+using namespace std;
 
 void Pulsar::Telescopes::set_telescope_info (Telescope *t, Archive *a)
 {
     std::string emsg;
 
-    char oldcode = ' '; // should replace with new codes , before we run out of letters!
+    char oldcode = ' '; // should replace with new codes before we run out of letters!
 #ifdef HAVE_TEMPO2
     try {
         std::string newcode = Tempo2::observatory (a->get_telescope())->get_name();
@@ -37,9 +38,8 @@ void Pulsar::Telescopes::set_telescope_info (Telescope *t, Archive *a)
             oldcode=0;
         }
 
-
-
-        if(oldcode != -1) oldcode = Tempo2::observatory (a->get_telescope())->get_code();
+        if (oldcode != 0)
+          oldcode = Tempo2::observatory (a->get_telescope())->get_code();
     }
     catch (Error& error)
     {
@@ -80,6 +80,10 @@ void Pulsar::Telescopes::set_telescope_info (Telescope *t, Archive *a)
 
         case '7':
             Telescopes::Parkes(t);
+            break;
+
+        case 'e':
+            Telescopes::MOST(t);
             break;
 
         case '8':
@@ -206,6 +210,12 @@ void Pulsar::Telescopes::MeerKAT(Telescope *t)
     t->set_mount (Telescope::Horizon);
     t->set_primary (Telescope::Parabolic);
     t->set_focus(Telescope::Gregorian);
+}
+
+void Pulsar::Telescopes::MOST(Telescope *t)
+{
+  t->set_name("MOST");
+    // XXX what about other settings? mount, focus,...
 }
 
 void Pulsar::Telescopes::MtPleasant26(Telescope *t)

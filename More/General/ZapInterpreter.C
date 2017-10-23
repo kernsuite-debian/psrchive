@@ -10,11 +10,14 @@
 #include "Pulsar/Archive.h"
 #include "Pulsar/Integration.h"
 #include "Pulsar/Profile.h"
-#include "Pulsar/CalibratorExtension.h"
+
+#include "Pulsar/PolnCalibratorExtension.h"
 
 #include "Pulsar/ChannelZapMedian.h"
 #include "Pulsar/LawnMower.h"
 #include "Pulsar/RobustMower.h"
+#include "Pulsar/Statistics.h"
+#include "Pulsar/InterQuartileRange.h"
 
 #include "TextInterface.h"
 #include "pairutil.h"
@@ -49,6 +52,12 @@ Pulsar::ZapInterpreter::ZapInterpreter ()
       "mow", "median smooth the profile and clean spikes",
       "usage: mow <TI> \n"
       "  type 'zap mow help' for text interface help" );
+
+  add_command 
+    ( &ZapInterpreter::iqr, 
+      "iqr", "zap subint/chan outliers using inter-quartile range",
+      "usage: iqr <TI> \n"
+      "  type 'zap iqr help' for text interface help" );
 
   add_command
     ( &ZapInterpreter::chan,
@@ -172,11 +181,82 @@ catch (Error& error)
   return response (Fail, error.get_message());
 }
 
+string Pulsar::ZapInterpreter::iqr (const string& args) try
+{
+  bool expand = false;
+  vector<string> arguments = setup (args, expand);
+
+  if (!iq_range)
+    iq_range = new InterQuartileRange;
+
+  if (!arguments.size())
+  {
+    (*iq_range)( get() );
+    return response (Good);
+  }
+
+  //! Zap median interface
+  Reference::To<TextInterface::Parser> interface = iq_range->get_interface();
+
+  string retval;
+  for (unsigned icmd=0; icmd < arguments.size(); icmd++)
+  {
+    if (icmd)
+      retval += " ";
+    retval += interface->process (arguments[icmd]);
+  }
+
+  return retval;
+}
+catch (Error& error) {
+  return response (Fail, error.get_message());
+}
+
 string Pulsar::ZapInterpreter::cal (const string& args)
 {
-  zap_calibrator = !zap_calibrator;
+  /*
+    Passing false as the second argument disables the default variable
+    substitution and expression evaluation using the Archive::Interpreter.
+    
+    This is done because any variables will be interpreted using the
+    PolnCalibratorExtension::Transformation::Interface class.
+  */
+  vector<string> arguments = setup (args, false);
+
+  if (arguments.size() == 0)
+  {
+    zap_calibrator = !zap_calibrator;
+    return response (Good);
+  }
+
+  /* If arguments are specified, each is interpreted as an expression
+    to be evaluated using the
+    PolnCalibratorExtension::Transformation::Interface class.  This
+    could also be extended to FluxCalibratorExtension */
+
+  Reference::To<PolnCalibratorExtension> ext;
+  ext = get()->get<PolnCalibratorExtension>();
+  if (!ext)
+    return response (Fail, "archive does not contain PolnCalibratorExtension");
+
+  for (unsigned ichan=0; ichan<ext->get_nchan(); ichan++)
+  {
+    PolnCalibratorExtension::Transformation::Interface parser;
+    parser.set_instance( ext->get_transformation(ichan) );
+    
+    for (unsigned iarg=0; iarg < arguments.size(); iarg++)
+    {
+      string expression = arguments[iarg];
+      string value = process( &parser, expression );
+
+      if (fromstring<bool>( value ))
+	ext->set_weight( ichan, 0.0 );
+    }
+  }
+  
   return response (Good);
 }
+
 
 string Pulsar::ZapInterpreter::empty ()
 {
@@ -340,6 +420,23 @@ try {
     return response (Fail, "invalid fraction " + tostring(fraction));
 
   Archive* archive = get();
+
+  if (zap_calibrator)
+  {
+    Reference::To<CalibratorExtension> ext = get()->get<CalibratorExtension>();
+    if (!ext)
+      return response (Fail, "archive does not contain CalibratorExtension");
+
+    unsigned nchan = ext->get_nchan();
+    unsigned nedge = unsigned( nchan * fraction );
+
+    for (unsigned ichan=0; ichan<nedge; ichan++)
+      ext->set_weight( ichan, 0.0 );
+    for (unsigned ichan=nchan-nedge; ichan<nchan; ichan++)
+      ext->set_weight( ichan, 0.0 );
+
+    return response (Good);
+  }
 
   unsigned isub,  nsub = archive->get_nsubint();
   unsigned ichan, nchan = archive->get_nchan();

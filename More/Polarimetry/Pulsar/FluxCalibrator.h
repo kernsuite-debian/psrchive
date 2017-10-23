@@ -49,13 +49,19 @@ namespace Pulsar {
     double Tsys (unsigned ichan);
 
     //! Return an estimate of the artificial cal Stokes parameters
-    CalibratorStokes* get_CalibratorStokes ();
+    const CalibratorStokes* get_CalibratorStokes () const;
     
     //! Add a FluxCal Pulsar::Archive to the set of constraints
     void add_observation (const Archive* archive);
 
     //! Set the database containing flux calibrator information
     void set_database (const StandardCandles* database);
+
+    //! Set the threshold used to reject outliers when computing levels
+    void set_outlier_threshold (float f) { outlier_threshold = f; }
+
+    //! Get the threshold used to reject outliers when computing levels
+    float get_outlier_threshold () const { return outlier_threshold; }
 
     //! Calibrate the flux in the given archive
     void calibrate (Archive* archive);
@@ -108,6 +114,9 @@ namespace Pulsar {
 
   private:
 
+    //! The CalibratorStokes parameters derived from this solution
+    mutable Reference::To<CalibratorStokes> calibrator_stokes;
+    
     //! Set true after call to calculate
     bool calculated;
 
@@ -119,6 +128,9 @@ namespace Pulsar {
 
     //! Information stored about the standard candle
     std::string standard_candle_info;
+
+    //! Threshold used to reject outliers when computing levels
+    double outlier_threshold;
 
     //! Initialize attributes
     void init ();

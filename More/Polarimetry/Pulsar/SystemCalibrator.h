@@ -24,6 +24,7 @@
 namespace Pulsar
 {
   class ReferenceCalibrator;
+  class FluxCalibrator;
   class CalibratorStokes;
 
   //! PolnCalibrator with estimated calibrator Stokes parameters
@@ -68,14 +69,23 @@ namespace Pulsar
     //! Return true if the state index is a pulsar
     virtual unsigned get_state_is_pulsar (unsigned istate) const;
 
+    //! Return true if calibrator (e.g. noise diode) data are incorporated
+    virtual bool has_cal () const { return calibrator_estimate.size(); }
+
     //! Retern a new plot information interface for the specified pulsar state
     virtual Calibrator::Info* new_info_pulsar (unsigned istate) const;
+
+    //! Set the flux calibrator solution used to estimate calibrator Stokes
+    void set_flux_calibrator (const FluxCalibrator* fluxcal);
 
     //! Set the calibrator observations to be loaded after first pulsar
     void set_calibrators (const std::vector<std::string>& filenames);
     
     //! Set the calibrator
     virtual void set_calibrator (const Archive*);
+
+    //! Set the response (pure Jones) transformation
+    virtual void set_response( MEAL::Complex2* );
 
     //! Set the impurity transformation
     virtual void set_impurity( MEAL::Real4* );
@@ -128,12 +138,15 @@ namespace Pulsar
     //! Return true if least squares minimization solvers are available
     virtual bool has_solver () const;
 
-    //! Return the transformation for the specified channel
+    //! Return the solver for the specified channel
     virtual const Solver* get_solver (unsigned ichan) const;
 
     //! Set the algorithm used to solve the measurement equation
     virtual void set_solver (Solver*);
 
+    //! Get the algorithm used to solve the measurement equation
+    virtual Solver* get_solver ();
+    
     //! Set the reduced chisq above which the solution will be retried
     virtual void set_retry_reduced_chisq (float);
 
@@ -148,6 +161,12 @@ namespace Pulsar
 
     //! Report on the data included as constraints before fitting
     virtual void set_report_input_data (bool flag = true);
+
+    //! Set the threshold used to reject outliers when computing levels
+    void set_outlier_threshold (float f) { outlier_threshold = f; }
+
+    //! Get the threshold used to reject outliers when computing levels
+    float get_outlier_threshold () const { return outlier_threshold; }
 
     //! Solve equation for each frequency
     virtual void solve ();
@@ -203,8 +222,14 @@ namespace Pulsar
     //! The algorithm used to solve the measurement equation
     Reference::To<Solver> solver;
 
+    //! The FluxCalibrator solution
+    Reference::To<const FluxCalibrator> flux_calibrator;
+    
     //! The CalibratorStokesExtension of the Archive passed during construction
     mutable Reference::To<const CalibratorStokes> calibrator_stokes;
+
+    //! Response transformation
+    Reference::To< MEAL::Complex2 > response;
 
     //! Impurity transformation
     Reference::To< MEAL::Real4 > impurity;
@@ -273,9 +298,15 @@ namespace Pulsar
     //! Epoch of the last observation
     MJD end_epoch;
 
+    //! Include a correction for Faraday rotation in the ISM
+    bool correct_interstellar_Faraday_rotation;
+    
     //! Set the initial guess in solve_prepare
     bool set_initial_guess;
 
+    //! Ensure that first guess of calibrator Stokes parameters is physical
+    bool guess_physical_calibrator_stokes;
+    
     //! The maximum reduced chisq before another fit will be attempted
     float retry_chisq;
 
@@ -291,6 +322,9 @@ namespace Pulsar
     //! Report on the data included as constraints
     bool report_input_data;
 
+    //! Threshold used to reject outliers when computing levels
+    double outlier_threshold;
+    
     //! Prepare the measurement equations for fitting
     virtual void solve_prepare ();
 
