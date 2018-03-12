@@ -11,7 +11,7 @@ Vcs-Browser: https://github.com/kernsuite-debian/psrchive
 
 Package: psrchive
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, csh
 Description: C++ development library for the analysis of pulsar astronomical data
   It implements an extensive range of algorithms for use in pulsar timing,
   scintillation studies, polarimetric calibration, single-pulse work, RFI

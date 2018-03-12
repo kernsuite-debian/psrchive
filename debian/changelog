@@ -1,3 +1,10 @@
+psrchive (2012.12+git20180308-1kern1) bionic; urgency=medium
+
+  * cleanup
+  * New upstream version 2012.12+git20180308
+
+ -- KERN packaging <packaging@kernsuite.info>  Mon, 12 Mar 2018 09:14:53 +0000
+
 psrchive (2012.12+20171106-1kern1) xenial; urgency=medium
 
   * Imported Upstream version 2012.12+20171106
