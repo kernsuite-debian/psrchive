@@ -10,4 +10,5 @@ override_dh_auto_build:
 override_dh_auto_install:
 	dh_auto_install
 	dh_auto_install -- -C More/Plotting
+	rm -rf debian/psrchive/usr/include/debug.h
 
