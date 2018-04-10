@@ -3,7 +3,7 @@ Section: science
 Priority: optional
 Maintainer: Gijs Molenaar (launchpad ppa build key) <gijs@pythonic.nl>
 Build-Depends: debhelper (>=9), libfftw3-dev, libpgsbox5, libcfitsio-dev,
- gfortran, dh-autoreconf, tempo2
+ gfortran, dh-autoreconf, tempo2, python-dev, swig, python-numpy, libgsl-dev
 Standards-Version: 3.9.7
 Homepage: http://psrchive.sourceforge.net/
 Vcs-Git: https://github.com/kernsuite-debian/psrchive
