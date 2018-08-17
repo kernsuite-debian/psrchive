@@ -5,3 +5,12 @@ files
 *.debhelper.log
 *.substvars
 psrchive/
+libpsrbase0/
+libpsrmore0/
+libpsrplot0/
+libpsrutil0/
+psrchive-dev/
+*.debhelper
+python-psrchive/
+tmp/
+
