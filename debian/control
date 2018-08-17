@@ -20,13 +20,76 @@ Standards-Version: 3.9.7
 Homepage: http://psrchive.sourceforge.net/
 Vcs-Git: https://github.com/kernsuite-debian/psrchive
 Vcs-Browser: https://github.com/kernsuite-debian/psrchive
+X-Python-Version: 2.7
 
 Package: psrchive
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, csh
+Description: analysis of pulsar astronomical data
+  It implements an extensive range of algorithms for use in pulsar timing,
+  scintillation studies, polarimetric calibration, single-pulse work, RFI
+  mitigation, etc. These tools are utilized by a powerful suite of user-end
+  programs that come with the library. The software is described in Hotan, van
+  Straten & Manchester (2004).
+
+Package: psrchive-dev
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: analysis of pulsar astronomical data (development files)
+  It implements an extensive range of algorithms for use in pulsar timing,
+  scintillation studies, polarimetric calibration, single-pulse work, RFI
+  mitigation, etc. These tools are utilized by a powerful suite of user-end
+  programs that come with the library. The software is described in Hotan, van
+  Straten & Manchester (2004).
+
+Package: python-psrchive
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}
+Description: analysis of pulsar astronomical data (python library)
+  It implements an extensive range of algorithms for use in pulsar timing,
+  scintillation studies, polarimetric calibration, single-pulse work, RFI
+  mitigation, etc. These tools are utilized by a powerful suite of user-end
+  programs that come with the library. The software is described in Hotan, van
+  Straten & Manchester (2004).
+
+Package: libpsrbase0
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: C++ development library for the analysis of pulsar astronomical data
   It implements an extensive range of algorithms for use in pulsar timing,
   scintillation studies, polarimetric calibration, single-pulse work, RFI
   mitigation, etc. These tools are utilized by a powerful suite of user-end
   programs that come with the library. The software is described in Hotan, van
   Straten & Manchester (2004).
+
+Package: libpsrmore0
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: C++ development library for the analysis of pulsar astronomical data
+  It implements an extensive range of algorithms for use in pulsar timing,
+  scintillation studies, polarimetric calibration, single-pulse work, RFI
+  mitigation, etc. These tools are utilized by a powerful suite of user-end
+  programs that come with the library. The software is described in Hotan, van
+  Straten & Manchester (2004).
+
+Package: libpsrplot0
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: C++ development library for the analysis of pulsar astronomical data
+  It implements an extensive range of algorithms for use in pulsar timing,
+  scintillation studies, polarimetric calibration, single-pulse work, RFI
+  mitigation, etc. These tools are utilized by a powerful suite of user-end
+  programs that come with the library. The software is described in Hotan, van
+  Straten & Manchester (2004).
+
+Package: libpsrutil0
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: C++ development library for the analysis of pulsar astronomical data
+  It implements an extensive range of algorithms for use in pulsar timing,
+  scintillation studies, polarimetric calibration, single-pulse work, RFI
+  mitigation, etc. These tools are utilized by a powerful suite of user-end
+  programs that come with the library. The software is described in Hotan, van
+  Straten & Manchester (2004).
+
+
