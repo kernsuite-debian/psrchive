@@ -1,0 +1,4 @@
+version=4
+opts="mode=git, pgpmode=none, pretty=2012.12+git%cd.%h" \
+git://git.code.sf.net/p/psrchive/code \
+HEAD debian uupdate
