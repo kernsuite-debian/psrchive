@@ -51,6 +51,7 @@ nobase_include_HEADERS = \
 	Pulsar/FrequencyAppend.h \
         Pulsar/FrequencyIntegrate.h \
         Pulsar/GaussianBaseline.h \
+	Pulsar/ImageCorrection.h \
 	Pulsar/Index.h \
 	Pulsar/Integrate.h \
 	Pulsar/IntegrationBarycentre.h \
@@ -186,6 +187,7 @@ libGeneral_la_SOURCES = \
 	FrequencyAppend.C \
         FrequencyIntegrate.C \
         GaussianBaseline.C \
+	ImageCorrection.C \
 	Index.C \
 	InstallInterpreter.C \
         Integration_cal_levels.C \
@@ -291,13 +293,12 @@ endif
 #############################################################################
 #
 
-INCLUDES = \
-	-I$(top_srcdir)/More/Timing \
-	-I$(top_srcdir)/More/Polarimetry \
-	-I$(top_srcdir)/More/MEAL \
-	-I$(top_srcdir)/More/RFIMitigation
-
 include $(top_srcdir)/config/Makefile.include
 
-AM_CPPFLAGS += @PGPLOT_CFLAGS@ @TEMPO2_CFLAGS@ @CFITSIO_CFLAGS@ @GSL_CFLAGS@
+AM_CPPFLAGS += \
+        -I$(top_srcdir)/More/Timing \
+        -I$(top_srcdir)/More/Polarimetry \
+        -I$(top_srcdir)/More/MEAL \
+        -I$(top_srcdir)/More/RFIMitigation \
+	@PGPLOT_CFLAGS@ @TEMPO2_CFLAGS@ @CFITSIO_CFLAGS@ @GSL_CFLAGS@
 

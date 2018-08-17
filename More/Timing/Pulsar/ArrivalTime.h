@@ -23,6 +23,7 @@ namespace Pulsar {
   class Archive;
   class Integration;
   class Profile;
+  class Flux;
 
   //! Manages arrival time estimation
   /*! 
@@ -68,6 +69,9 @@ namespace Pulsar {
     //! Set additional attributes
     void set_attributes (const std::vector< std::string >&);
 
+    //! Set additional TOA text (only used in tempo2 format)
+    void set_extra_text (const std::string&);
+
     //! Skip data with zero weight
     void set_skip_bad (bool flag) { skip_bad = flag; }
 
@@ -82,6 +86,12 @@ namespace Pulsar {
 
     //! Get the archive of residual profiles
     Archive* get_residual () { return residual; }
+    
+    //! Set method for computing flux density of profiles
+    void set_flux_estimator (Flux *);
+
+    //! Get flux density esimtaor
+    Flux* get_flux_estimator () const;
 
   protected:
 
@@ -96,6 +106,8 @@ namespace Pulsar {
     
     Reference::To<ShiftEstimator> shift_estimator;
 
+    Reference::To<Flux> flux_estimator;
+
     //! default TOA output format
     static Option<std::string> default_format;
 
@@ -104,6 +116,9 @@ namespace Pulsar {
 
     //! additional format-specific flags
     std::string format_flags;
+
+    //! additional TOA line text
+    std::string extra_text;
 
     //! for formats that support it, a list of attributes to add
     std::vector<std::string> attributes;
@@ -133,7 +148,7 @@ namespace Pulsar {
 
   private:
 
-    void standard_update ();
+    void standard_update (unsigned ichan=0);
     void setup (const Integration* subint, unsigned ichan);
 
   };
