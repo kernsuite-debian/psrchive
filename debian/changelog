@@ -1,3 +1,13 @@
+psrchive (2012.12+git20180817.52211d7-1) bionic; urgency=medium
+
+  [ Gijs Molenaar ]
+  * add watch file
+  * New upstream version 2012.12+git20180817.52211d7
+  * add X depenendcy
+  * properly split package
+
+ -- KERN packaging <packaging@kernsuite.info>  Fri, 17 Aug 2018 15:47:47 +0200
+
 psrchive (2012.12+git20180322-1kern2) bionic; urgency=medium
 
   * add missing dependencies
