@@ -1,1 +1,12 @@
 usr/bin/*
+usr/share/Parkes
+usr/share/html
+usr/share/fluxcal.on
+usr/share/pa_error_matrix.asc
+usr/share/psrheader.fits
+usr/share/fluxcal.cfg
+usr/share/tempo2.key
+usr/share/fluxcal.off
+usr/share/2D_data.asc
+usr/share/psrchive_version
+
