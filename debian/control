@@ -34,7 +34,7 @@ Description: analysis of pulsar astronomical data
 
 Package: psrchive-dev
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, psrchive
 Description: analysis of pulsar astronomical data (development files)
   It implements an extensive range of algorithms for use in pulsar timing,
   scintillation studies, polarimetric calibration, single-pulse work, RFI
