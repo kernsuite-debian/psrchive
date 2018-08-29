@@ -168,6 +168,8 @@ libGeneral_la_SOURCES = \
 	Contemporaneity.C \
 	Convolve.C \
 	Correlate.C \
+	StrategySet.C \
+	StrategySetInterface.C \
 	DeleteInterpreter.C \
 	Differentiate.C \
 	DisperseWeight.C \
