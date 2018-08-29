@@ -1,3 +1,11 @@
+psrchive (2012.12+git20180822.907da9b-1) bionic; urgency=medium
+
+  [ Gijs Molenaar ]
+  * add missing inter-dep
+  * New upstream version 2012.12+git20180822.907da9b
+
+ -- KERN packaging <packaging@kernsuite.info>  Wed, 29 Aug 2018 19:02:15 +0200
+
 psrchive (2012.12+git20180817.52211d7-2) bionic; urgency=medium
 
   [ Gijs Molenaar ]
