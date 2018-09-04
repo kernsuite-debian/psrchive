@@ -1,3 +1,10 @@
+psrchive (2012.12+git20180901.8117df3-1) bionic; urgency=medium
+
+  [ Gijs Molenaar ]
+  * New upstream version 2012.12+git20180901.8117df3
+
+ -- KERN packaging <packaging@kernsuite.info>  Tue, 04 Sep 2018 12:55:43 +0200
+
 psrchive (2012.12+git20180822.907da9b-1) bionic; urgency=medium
 
   [ Gijs Molenaar ]
