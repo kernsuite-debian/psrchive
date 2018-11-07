@@ -1,3 +1,11 @@
+psrchive (2012.12+git20181029.da2dfa8-1) bionic; urgency=medium
+
+  [ Gijs Molenaar ]
+  * disable patch disabling
+  * New upstream version 2012.12+git20181029.da2dfa8
+
+ -- KERN packaging <packaging@kernsuite.info>  Wed, 07 Nov 2018 17:24:07 +0100
+
 psrchive (2012.12+git20180913.b5d799b-1) bionic; urgency=medium
 
   [ Gijs Molenaar ]
