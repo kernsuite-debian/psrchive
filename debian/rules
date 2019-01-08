@@ -8,7 +8,7 @@ override_dh_auto_build:
 	dh_auto_build --  -C More/Plotting
 
 override_dh_auto_configure:
-	dh_auto_configure -- --enable-shared --with-x
+	dh_auto_configure -- --enable-shared --with-x --with-psrcat=psrcat 
 
 override_dh_auto_install:
 	dh_auto_install

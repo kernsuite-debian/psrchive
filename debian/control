@@ -15,7 +15,8 @@ Build-Depends:
  python-dev,
  swig,
  python-numpy,
- libgsl-dev
+ libgsl-dev,
+ psrcat
 Standards-Version: 3.9.7
 Homepage: http://psrchive.sourceforge.net/
 Vcs-Git: https://github.com/kernsuite-debian/psrchive
