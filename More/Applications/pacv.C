@@ -88,6 +88,7 @@ void usage ()
 // vector of bad channels
 vector<unsigned> zapchan;
 
+bool print_IXR = false;
 bool print_jones = false;
 bool print_mueller = false;
 bool print_calibrator_stokes = false;
@@ -107,6 +108,9 @@ bool verbose = false;
 
 // called when the input archive has type == Signal::Calibrator
 void handle_calibrator (Archive*);
+
+// called when any of some of the print_* flags are set
+void print_cal_matrix (PolnCalibrator* calibrator);
 
 int main (int argc, char** argv) 
 {
@@ -168,7 +172,7 @@ int main (int argc, char** argv)
 
   char c;
 
-  while ((c = getopt(argc, argv, "2:a:bc:CD:dfFghjM:mn:oPpRr:S:stuqvV")) != -1)
+  while ((c = getopt(argc, argv, "2:a:bc:CD:dfFghjM:mn:oPpRr:S:stuqvVX")) != -1)
   {
     switch (c)
     {
@@ -351,7 +355,7 @@ int main (int argc, char** argv)
 
     case 'u':
       unload_derived_calibrator = true;
-      plot_calibrator_solution = false;
+      disable_plotting = true;
       break;
 
     case 'V':
@@ -369,6 +373,10 @@ int main (int argc, char** argv)
       Archive::set_verbosity (0);
       break;
 
+    case 'X':
+      print_IXR = true;
+      disable_plotting = true;
+      break;
     } 
   }
 
@@ -585,6 +593,12 @@ int main (int argc, char** argv)
 	cerr << "pacv: Unloading solution " << newname << endl;
 	output -> unload (newname);
       }
+
+      if (print_jones || print_mueller || print_IXR)
+      {
+        cerr << "pacv: Printing elements" << endl;
+        print_cal_matrix (calibrator);
+      }
     }
   }
   catch (Error& error)
@@ -706,6 +720,22 @@ void print_cal_matrix (PolnCalibrator* calibrator)
       
       cout << endl;
     }
+
+    if (print_IXR)
+    {
+      complex<double> det;
+      Quaternion<double, Hermitian> herm;
+      Quaternion<double, Unitary> unit;
+      
+      polar (det, herm, unit, J);
+
+      double cosh_beta = herm[0];
+      double sinh_beta = norm( herm.get_vector() );
+      double coth_beta = sinh_beta / cosh_beta;
+      double IXR = coth_beta * coth_beta;
+	
+      cout << ichan << " " << 10*log10(IXR) << " dB" << endl;
+    }
   }
 }
 
@@ -759,9 +789,9 @@ void handle_calibrator (Archive* input)
   cerr << "pacv: Archive Calibrator with nchan=" 
        << calibrator->get_nchan() << endl;
 
-  if (print_jones || print_mueller)
+  if (print_jones || print_mueller || print_IXR)
   {
-    cerr << "pacv: Printing Jones matrix elements" << endl;
+    cerr << "pacv: Printing elements" << endl;
     print_cal_matrix (calibrator);
     return;
   }

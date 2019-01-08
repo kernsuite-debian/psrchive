@@ -115,12 +115,17 @@ void usage ()
     "  -r         enforce physically realizable Stokes parameters [DEVEL]\n"
     "  -s         normalize Stokes parameters by total invariant interval \n"
     "\n"
-    "  -q         assume that CAL Stokes Q = 0 (linear feeds only)\n"
-    "  -v         assume that CAL Stokes V = 0 (linear feeds only)\n"
-    "  -k         assume that the receptors have equal ellipticities \n"
-    "\n"
     "  -F days    use flux calibrators within days of pulsar data mid-time\n"
     "  -L hours   use reference sources within hours of pulsar data mid-time\n"
+    "  -Q         reference source coupled after frontend \n"
+    "\n"
+    "  Constraints on degeneracy under commutation \n"
+    "  -- See " PSRCHIVE_HTTP "/manuals/pcm/degeneracy.shtml \n"
+    "\n"
+    "  -q         assume that CAL Stokes Q = 0 (linear feeds only)\n"
+    "  -v         assume that CAL Stokes V = 0 (linear feeds only)\n"
+    "  -Y         model the difference between FluxCal-On and FluxCal-Off \n"
+    "  -k         assume that the receptors have equal ellipticities \n"
     "\n"
     "METM: Measurement Equation Template Matching\n"
     "  -- observations of a known source as in van Straten (2013) \n"
@@ -357,6 +362,9 @@ vector<string> calibrator_filenames;
 // Each flux calibrator observation may have unique values of I, Q & U
 bool multiple_flux_calibrators = false;
 
+// Model the difference between FluxCalOn and FluxCalOff observations
+bool model_fluxcal_on_minus_off = false;
+
 // Derive first guess of calibrator Stokes parameters from fluxcal solution
 bool use_fluxcal_stokes = false;
 
@@ -367,7 +375,7 @@ bool equal_ellipticities = false;
 bool normalize_by_invariant = false;
 bool independent_gains = false;
 bool step_after_cal = false;
-
+bool refcal_through_frontend = true;
 bool physical_coherency = false;
 
 float retry_chisq = 0.0;
@@ -653,8 +661,8 @@ int actual_main (int argc, char *argv[]) try
   int gotc = 0;
 
   const char* args =
-    "1A:a:B:b:C:c:D:d:E:e:F:fGgHhI:i:j:J:K:kL:l:"
-    "M:m:Nn:O:o:Pp:qR:rS:st:T:u:U:vV:wW:xX:yzZ";
+    "1A:a:B:b:C:c:D:d:E:e:F:fGgHhI:i:J:j:K:kL:l:"
+    "M:m:Nn:O:o:Pp:QqR:rS:sT:t:U:u:V:vW:wX:xYyZz";
 
   while ((gotc = getopt(argc, argv, args)) != -1)
   {
@@ -844,6 +852,14 @@ int actual_main (int argc, char *argv[]) try
       break;
     }
 
+    case 'q':
+      measure_cal_Q = false;
+      break;
+
+    case 'Q':
+      refcal_through_frontend = false;
+      break;
+
     case 'r':
       physical_coherency = true;
       break;
@@ -894,10 +910,6 @@ int actual_main (int argc, char *argv[]) try
       set_foreach_calibrator( optarg[0] );
       break;
 
-    case 'q':
-      measure_cal_Q = false;
-      break;
-
     case 'v':
       measure_cal_V = false;
       break;
@@ -922,6 +934,10 @@ int actual_main (int argc, char *argv[]) try
       ProjectionCorrection::trust_pointing_feed_angle = true;
       break;
 
+    case 'Y':
+      model_fluxcal_on_minus_off = true;
+      break;
+      
     case 'h':
       usage ();
       return 0;
@@ -1472,6 +1488,13 @@ SystemCalibrator* measurement_equation_modeling (const char* binfile,
   for (unsigned ibin=0; ibin<phase_bins.size(); ibin++)
     model->add_state (phase_bins[ibin]);
 
+  if (refcal_through_frontend)
+    cerr << "pcm: reference source illuminates frontend" << endl;
+  else
+    cerr << "pcm: reference source coupled after frontend" << endl;
+
+  model->set_refcal_through_frontend( refcal_through_frontend );
+  
   if (multiple_flux_calibrators)
     cerr <<
       "pcm: each flux calibrator observation "
@@ -1479,6 +1502,11 @@ SystemCalibrator* measurement_equation_modeling (const char* binfile,
 
   model->multiple_flux_calibrators = multiple_flux_calibrators;
 
+  if (model_fluxcal_on_minus_off)
+    cerr << "pcm: modeling difference between FluxCalOn and FluxCalOff" << endl;
+
+  model->model_fluxcal_on_minus_off = model_fluxcal_on_minus_off;
+  
   if (flux_cal)
     model->set_flux_calibrator (flux_cal);
   
@@ -1707,7 +1735,7 @@ void load_calibrator_database () try
   }
   
   if (template_filename)
-    cerr << "pcm: no need for on-source flux calibrator observations" << endl;
+    cerr << "pcm: no need for flux calibrator observations" << endl;
   else
   {
     double span_days = (end_time - start_time).in_days();
@@ -1725,6 +1753,22 @@ void load_calibrator_database () try
     if (oncals.size() == poln_cals)
       cerr << "pcm: no FluxCalOn observations found; closest match was \n\n"
 	   << database->get_closest_match_report () << endl;
+
+    if (model_fluxcal_on_minus_off)
+    {
+      unsigned ncals = oncals.size();
+      
+      criteria.entry.obsType = Signal::FluxCalOff;
+    
+      cerr << "pcm: searching for off-source flux calibrator observations"
+	" within " << search_days << " days of midtime" << endl;
+
+      database->all_matching (criteria, oncals);
+  
+      if (oncals.size() == ncals)
+	cerr << "pcm: no FluxCalOff observations found; closest match was \n\n"
+	     << database->get_closest_match_report () << endl;
+    }
   }
 
   for (unsigned i = 0; i < oncals.size(); i++)
@@ -1742,17 +1786,6 @@ catch (Error& error)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 #if HAVE_PGPLOT
 
 void plot_state (SystemCalibrator* model, const std::string& state) try
@@ -1761,6 +1794,7 @@ void plot_state (SystemCalibrator* model, const std::string& state) try
 
   SystemCalibratorPlotter plotter (model);
   plotter.use_colour = !publication_plots;
+  plotter.npanel = 4;
 
   //
   // if the SystemCalibrator is a ReceptionCalibrator (MEM mode)
@@ -1773,6 +1807,7 @@ void plot_state (SystemCalibrator* model, const std::string& state) try
   {
     rplotter = new ReceptionCalibratorPlotter (rmodel);
     rplotter->use_colour = !publication_plots;
+    rplotter->npanel = 4;
   }
 
   //

@@ -25,7 +25,7 @@ nobase_include_HEADERS = \
         Pulsar/FaradayRotation.h \
         Pulsar/Feed.h \
 	Pulsar/FitGoodnessReport.h \
-        Pulsar/FluxCalibratorData.h \
+        Pulsar/FluxCalibratorPolicy.h \
         Pulsar/FluxCalibrator.h \
 	Pulsar/FluxCalManager.h \
 	Pulsar/FluxCalManagerInfo.h \
@@ -79,6 +79,7 @@ nobase_include_HEADERS = \
         Pulsar/SingleAxisPolynomial.h \
         Pulsar/SingleAxisSolver.h \
 	Pulsar/SolverInfo.h \
+	Pulsar/SourceDeltaEstimate.h \
 	Pulsar/SourceEstimate.h \
 	Pulsar/SourceInfo.h \
 	Pulsar/StandardData.h \
@@ -120,7 +121,9 @@ libPolarimetry_la_SOURCES = \
         Feed_load.C \
 	FitGoodnessReport.C \
         FluxCalibrator.C \
-        FluxCalibratorData.C \
+	FluxCalibratorConstantGain.C \
+        FluxCalibratorPolicy.C \
+        FluxCalibratorVariableGain.C \
 	FluxCalibratorExt.C \
 	FluxCalManager.C \
 	FluxCalManagerInfo.C \
@@ -177,6 +180,7 @@ libPolarimetry_la_SOURCES = \
         SingleAxisPolynomial.C \
         SingleAxisSolver.C \
 	SolverInfo.C \
+	SourceDeltaEstimate.C \
 	SourceEstimate.C \
         SourceInfo.C \
 	StandardData.C \

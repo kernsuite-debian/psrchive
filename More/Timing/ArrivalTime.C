@@ -16,6 +16,9 @@
 #include "Pulsar/Statistics.h"
 #include "Pulsar/Backend.h"
 
+#include "Pulsar/Flux.h"
+#include "Pulsar/StandardFlux.h"
+
 #include <strings.h>
 
 using namespace std;
@@ -70,19 +73,41 @@ Pulsar::ShiftEstimator* Pulsar::ArrivalTime::get_shift_estimator () const
   return shift_estimator;
 }
 
-void Pulsar::ArrivalTime::standard_update()
+//! Set the algorithm used to estimate the flux density
+void Pulsar::ArrivalTime::set_flux_estimator (Flux* flux)
+{
+  flux_estimator = flux;
+  standard_update();
+}
+
+Pulsar::Flux* Pulsar::ArrivalTime::get_flux_estimator () const
+{
+  return flux_estimator;
+}
+
+void Pulsar::ArrivalTime::standard_update(unsigned ichan)
 {
   if (!standard)
     return;
 
-  if (!shift_estimator)
-    return;
+  if (shift_estimator)
+  {
 
-  ProfileStandardShift* shift;
-  shift = dynamic_cast<ProfileStandardShift*> (shift_estimator.get());
+    ProfileStandardShift* shift;
+    shift = dynamic_cast<ProfileStandardShift*> (shift_estimator.get());
 
-  if (shift)
-    shift->set_standard (standard->get_Profile (0,0,0));
+    if (shift)
+      shift->set_standard (standard->get_Profile (0,0,ichan));
+  }
+
+  if (flux_estimator)
+  {
+    StandardFlux* flux;
+    flux = dynamic_cast<StandardFlux*> (flux_estimator.get());
+
+    if (flux)
+      flux->set_standard (standard->get_Profile (0,0,ichan));
+  }
 }
 
 //! Set the format of the output time-of-arrival estimates
@@ -101,6 +126,29 @@ void Pulsar::ArrivalTime::set_format_flags (const std::string& flags)
 void Pulsar::ArrivalTime::set_attributes (const std::vector<std::string>& attr)
 {
   attributes = attr;
+
+  // Check for presence of flux attribute to enable flux estimate
+  if (!flux_estimator)
+  {
+    for (unsigned i=0; i<attributes.size(); i++) 
+    {
+      if (attributes[i] == "flux") 
+      {
+        // StandardFlux is the only implementation of Flux as of now.  If more
+        // algorithms appear, should implement some factory-style way of choosing
+        // the appropriate one, similar to the shift algorithms.
+        set_flux_estimator(new StandardFlux); 
+        break;
+      }
+    }
+  }
+
+}
+
+//! Set additional TOA line text
+void Pulsar::ArrivalTime::set_extra_text (const std::string& text)
+{
+  extra_text = text;
 }
 
 //! Add to the vector of time-of-arrival estimates
@@ -142,10 +190,7 @@ void Pulsar::ArrivalTime::get_toas (std::vector<Tempo::toa>& toas)
 void Pulsar::ArrivalTime::get_toas (unsigned isub,
 				    std::vector<Tempo::toa>& toas)
 {
-  ProfileStandardShift* shift = 0;
-
-  if (standard && standard->get_nchan() > 1)
-    shift = dynamic_cast<ProfileStandardShift*>( shift_estimator.get() );
+  bool multichannel_standard = standard && (standard->get_nchan() > 1);
 
   // Get a time adjustment from be_delay
   const Backend *be = observation->get<Backend>();
@@ -158,13 +203,14 @@ void Pulsar::ArrivalTime::get_toas (unsigned isub,
 
   for (unsigned ichan=0; ichan < subint->get_nchan(); ++ichan)
   {
-    if (shift)
-      shift->set_standard (standard->get_Profile (0,0,ichan));
+    if (multichannel_standard)
+      standard_update(ichan);
 
     const Profile* profile = subint->get_Profile (0, ichan);
 
     if ((skip_bad && (profile->get_weight() == 0))
-	|| (shift && standard->get_Profile (0,0,ichan)->get_weight() == 0))
+	|| (multichannel_standard 
+          && standard->get_Profile (0,0,ichan)->get_weight() == 0))
       continue;
     
     try
@@ -175,6 +221,9 @@ void Pulsar::ArrivalTime::get_toas (unsigned isub,
       Tempo::toa arrival_time = get_toa (shift, subint, ichan);
       arrival_time.set_reduced_chisq( shift_estimator->get_reduced_chisq () );
       arrival_time.set_StoN( shift_estimator->get_snr () );
+
+      if (flux_estimator)
+        arrival_time.set_flux(flux_estimator->get_flux (profile));
 
       // Adjust TOA with be_delay value, if present.
       // Positive be_delay means that the file timestamp is 
@@ -236,6 +285,36 @@ void Pulsar::ArrivalTime::dress_toas (unsigned isub,
 				      std::vector<Tempo::toa>& toas)
 {
   std::string nsite = observation->get_telescope();
+  // Try to get the special site codes for
+  // various Jodrell Bank backends.
+  // Perhaps there should be a subroutine for this?
+  if (format == Tempo::toa::Tempo2){
+      if (nsite == "h" || nsite=="JB_MKII") {
+          const Backend* be = observation->get<Backend>();
+          if (be) {
+              if (be->get_name()=="Jod"){
+                  nsite="jbmk2dfb";
+              }
+              if (be->get_name()=="ROACH"){
+                  nsite="jbmk2roach";
+              }
+          }
+      }
+      if (nsite == "8" || nsite=="Jodrell") {
+          const Backend* be = observation->get<Backend>();
+          if (be) {
+              if (be->get_name()=="Jod"){
+                  nsite="jbdfb";
+              }
+              if (be->get_name()=="ROACH"){
+                  nsite="jbroach";
+              }
+              if (be->get_name()=="COBRA2") {
+                  nsite="jb42";
+              }
+          }
+      }
+  } 
   std::string aux_txt;
 
   if (format == Tempo::toa::Parkes || format == Tempo::toa::Psrclock)
@@ -476,7 +555,8 @@ std::string Pulsar::ArrivalTime::get_value (const std::string& key,
   else if(key == "snr") return tostring( toa.get_StoN(), 5 );
   else if(key == "wt") return tostring( 
       observation->get_Integration(toa_subint)->get_weight(toa_chan), 5);
-
+  else if(key == "flux") return tostring(toa.get_flux().get_value(), 6);
+  else if(key == "fluxe") return tostring(toa.get_flux().get_error(), 2);
   else
   {
     Reference::To<TextInterface::Parser> interface;

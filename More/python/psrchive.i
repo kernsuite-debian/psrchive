@@ -13,16 +13,21 @@
 #include "Pulsar/Profile.h"
 
 #include "Pulsar/Pointing.h"
+#include "Pulsar/ITRFExtension.h"
 #include "Pulsar/Receiver.h"
 #include "Pulsar/Backend.h"
 
 #include "Pulsar/Parameters.h"
+#include "Pulsar/TextParameters.h"
 #include "load_factory.h"
 
 #include "Pulsar/Dispersion.h"
 #include "Pulsar/IntegrationBarycentre.h"
 
 #include "Pulsar/Interpreter.h"
+
+#include "Pulsar/ShiftEstimator.h"
+#include "Pulsar/ArrivalTime.h"
 
 #include "Pulsar/ProfileShiftFit.h"
 
@@ -35,6 +40,9 @@
 #include "Pulsar/Contemporaneity.h"
 #include "Pulsar/Predictor.h"
 #include "polyco.h"
+#include "toa.h"
+
+#include "Pulsar/ManualPolnCalibrator.h"
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -61,6 +69,11 @@ using Pulsar::Predictor;
 // Language independent exception handler
 %include exception.i       
 %include std_string.i
+
+%include std_vector.i
+namespace std {
+  %template(StringVector) vector<string>;
+}
 
 using namespace std;
 
@@ -158,6 +171,9 @@ void pointer_tracker_remove(Reference::Able *ptr) {
 // Also Contemporaneity
 %ignore Pulsar::PatchTime::set_contemporaneity_policy(Contemporaneity*);
 
+// This conflicted with std_vector for some reason
+%ignore Pulsar::ManualPolnCalibrator::match;
+
 // Return psrchive's Estimate class as a Python tuple
 %typemap(out) Estimate<double> {
     PyTupleObject *res = (PyTupleObject *)PyTuple_New(2);
@@ -219,6 +235,8 @@ void pointer_tracker_remove(Reference::Able *ptr) {
 %include "Pulsar/ProfileAmps.h"
 %include "Pulsar/Profile.h"
 %include "Pulsar/Parameters.h"
+%include "Pulsar/TextParameters.h"
+%include "Pulsar/ArrivalTime.h"
 %include "Pulsar/ProfileShiftFit.h"
 %include "Pulsar/WaveletSmooth.h"
 %include "Pulsar/Append.h"
@@ -227,6 +245,8 @@ void pointer_tracker_remove(Reference::Able *ptr) {
 %include "Pulsar/PatchTime.h"
 %include "Pulsar/PeakCumulative.h"
 %include "Pulsar/PeakConsecutive.h"
+%include "Pulsar/ITRFExtension.h"
+%include "Pulsar/ManualPolnCalibrator.h"
 %include "Angle.h"
 %include "sky_coord.h"
 %include "MJD.h"
@@ -337,8 +357,8 @@ double get_tobs(const char* filename) {
         
         n = self->get_nbin();
         ptr = self->get_amps();
-        arr = (PyArrayObject *)                                         \
-            PyArray_SimpleNewFromData(1, &n, PyArray_FLOAT, (char *)ptr);
+        arr = (PyArrayObject *) \
+              PyArray_SimpleNewFromData(1, &n, PyArray_FLOAT, (char *)ptr);
         if (arr == NULL) return NULL;
         PyArray_INCREF(arr);
         return (PyObject *)arr;
@@ -347,24 +367,55 @@ double get_tobs(const char* filename) {
 
 %extend Pulsar::Integration
 {
-
     // Interface to Pointing
     double get_telescope_zenith() {
         Pulsar::Pointing *p = self->get<Pulsar::Pointing>();
         if (p==NULL) return 0.0;
         return p->get_telescope_zenith().getDegrees();
     }
+
     double get_telescope_azimuth() {
         Pulsar::Pointing *p = self->get<Pulsar::Pointing>();
         if (p==NULL) return 0.0;
         return p->get_telescope_azimuth().getDegrees();
     }
+
     double get_parallactic_angle() {
         Pulsar::Pointing *p = self->get<Pulsar::Pointing>();
         if (p==NULL) return 0.0;
         p->update(self);
         return p->get_parallactic_angle().getDegrees();
     }
+
+   double get_position_angle() {
+       Pulsar::Pointing *p = self->get<Pulsar::Pointing>();
+       if (p==NULL) return 0.0;
+       p->update(self);
+       return p->get_position_angle().getDegrees();
+    }
+
+    // Return Galactic latitude and longitude. Pulsar::Pointing is
+    // inherited by Pulsar::Integration, hence we cannot call it
+    // while in archive object.
+    double get_galactic_latitude() {
+        Pulsar::Pointing *p = self->get<Pulsar::Pointing>();
+        if (p==NULL) return 0.0;
+        return p->get_galactic_latitude().getDegrees();
+    }
+
+    double get_galactic_longitude() {
+        Pulsar::Pointing *p = self->get<Pulsar::Pointing>();
+        if (p==NULL) return 0.0;
+        return p->get_galactic_longitude().getDegrees();
+    }
+
+    // Return LST in decimal hours.
+    double get_local_sidereal_time() {
+        Pulsar::Pointing *p = self->get<Pulsar::Pointing>();
+        if (p==NULL) return 0.0;
+        return p->get_local_sidereal_time() / 3600.0;
+    }
+
     void set_verbose() {
         self->verbose = 1;
     }
@@ -435,19 +486,19 @@ def rotate_phase(self,phase): return self._rotate_phase_swig(phase)
         PyArrayObject *hi_arr, *lo_arr, *sig_hi_arr, *sig_lo_arr;
         hi_arr = (PyArrayObject *)PyArray_SimpleNew(2, dims, PyArray_DOUBLE);
         lo_arr = (PyArrayObject *)PyArray_SimpleNew(2, dims, PyArray_DOUBLE);
-        sig_hi_arr = (PyArrayObject *)PyArray_SimpleNew(2, dims, 
+        sig_hi_arr = (PyArrayObject *)PyArray_SimpleNew(2, dims,
             PyArray_DOUBLE);
-        sig_lo_arr = (PyArrayObject *)PyArray_SimpleNew(2, dims, 
+        sig_lo_arr = (PyArrayObject *)PyArray_SimpleNew(2, dims,
             PyArray_DOUBLE);
         for (int ii=0; ii<dims[0]; ii++) {
             for (int jj=0; jj<dims[1]; jj++) {
-                ((double *)hi_arr->data)[ii*dims[1]+jj] = 
+                ((double *)hi_arr->data)[ii*dims[1]+jj] =
                     hi[ii][jj].get_value();
-                ((double *)lo_arr->data)[ii*dims[1]+jj] = 
+                ((double *)lo_arr->data)[ii*dims[1]+jj] =
                     lo[ii][jj].get_value();
-                ((double *)sig_hi_arr->data)[ii*dims[1]+jj] = 
+                ((double *)sig_hi_arr->data)[ii*dims[1]+jj] =
                     sqrt(hi[ii][jj].get_variance());
-                ((double *)sig_lo_arr->data)[ii*dims[1]+jj] = 
+                ((double *)sig_lo_arr->data)[ii*dims[1]+jj] =
                     sqrt(lo[ii][jj].get_variance());
             }
         }
@@ -461,16 +512,30 @@ def rotate_phase(self,phase): return self._rotate_phase_swig(phase)
         return (PyObject *)result;
     }
 
+    // Return frequency table of the integration as numpy array
+    PyObject *get_frequencies()
+    {
+        int ii;
+        PyArrayObject *arr;
+        npy_intp ndim[1];
+        ndim[0] = self->get_nchan();
+        arr = (PyArrayObject *)PyArray_SimpleNew(1, ndim, PyArray_DOUBLE);
+        for (ii = 0; ii < ndim[0]; ii++) {
+            ((double *)arr->data)[ii] = self->get_Profile(0, ii)->get_centre_frequency();
+        }
+        return (PyObject *)arr;
+    }
+
 }
 
 %extend Pulsar::Archive
 {
-
     // Allow indexing of Archive objects
     Pulsar::Integration *__getitem__(int i)
     {
         return self->get_Integration(i);
     }
+
     int __len__()
     {
         return self->get_nsubint();
@@ -506,13 +571,34 @@ def rotate_phase(self,phase): return self._rotate_phase_swig(phase)
         return b->get_delay();
     }
 
+    // Return telescope ITRF position as tuple.
+    // If ITRF coordinates are not present in the data then the position
+    // will be returned as "undefined".
+    PyObject *get_ant_xyz() {
+    double itrf_x, itrf_y, itrf_z;
+    Pulsar::ITRFExtension *p = self->get<Pulsar::ITRFExtension>();
+    if (p==NULL) {
+        PyObject *result = (PyObject *)PyString_FromString("undefined");
+        return (PyObject *)result;
+    } else {
+        itrf_x = p->get_ant_x();
+        itrf_y = p->get_ant_y();
+        itrf_z = p->get_ant_z();
+        PyTupleObject *result = (PyTupleObject *)PyTuple_New(3);
+        PyTuple_SetItem((PyObject *)result, 0, (PyObject *)PyFloat_FromDouble(itrf_x));
+        PyTuple_SetItem((PyObject *)result, 1, (PyObject *)PyFloat_FromDouble(itrf_y));
+        PyTuple_SetItem((PyObject *)result, 2, (PyObject *)PyFloat_FromDouble(itrf_z));
+        return (PyObject *)result;
+    }
+}
+
     // Allow timing model to be updated via eph filename
     void set_ephemeris(std::string eph_file)
     {
         Pulsar::Parameters *new_eph;
         new_eph = factory<Pulsar::Parameters> (eph_file);
         self->set_ephemeris(new_eph);
-        // TODO: update DM.. 
+        // TODO: update DM...
     }
 
     void dededisperse()
@@ -530,13 +616,27 @@ def rotate_phase(self,phase): return self._rotate_phase_swig(phase)
         return psrsh->parse(command);
     }
 
+    // Return frequency table of the archive as numpy array
+    PyObject *get_frequencies()
+    {
+        int ii;
+        PyArrayObject *arr;
+        npy_intp ndim[1];
+        ndim[0] = self->get_nchan();
+        arr = (PyArrayObject *)PyArray_SimpleNew(1, ndim, PyArray_DOUBLE);
+        for (ii = 0; ii < ndim[0]; ii++) {
+            ((double *)arr->data)[ii] = self->get_Profile(0, 0, ii)->get_centre_frequency();
+        }
+        return (PyObject *)arr;
+    }
+
     // Return a copy of all the data as a numpy array
     PyObject *get_data()
     {
         PyArrayObject *arr;
         npy_intp ndims[4];  // nsubint, npol, nchan, nbin
         int ii, jj, kk;
-        
+
         ndims[0] = self->get_nsubint();
         ndims[1] = self->get_npol();
         ndims[2] = self->get_nchan();
@@ -558,7 +658,7 @@ def rotate_phase(self,phase): return self._rotate_phase_swig(phase)
         PyArrayObject *arr;
         npy_intp ndims[2];  // nsubint, nchan
         int ii, jj;
-        
+
         ndims[0] = self->get_nsubint();
         ndims[1] = self->get_nchan();
         arr = (PyArrayObject *)PyArray_SimpleNew(2, ndims, PyArray_FLOAT);
@@ -605,4 +705,33 @@ def rotate_phase(self,phase): return self._rotate_phase_swig(phase)
         PyTuple_SetItem((PyObject *)result, 1, (PyObject *)PyInt_FromLong((long)lo));
         return (PyObject *)result;
     }
+}
+
+%extend Pulsar::ArrivalTime
+{
+    // Allow use of the 'pat -A' strings directly
+    void set_shift_estimator(std::string type) {
+        self->set_shift_estimator(Pulsar::ShiftEstimator::factory(type));
+    }
+
+    // Allow use of 'pat -e' type options
+    void shift_estimator_config(std::string config) {
+        Reference::To<TextInterface::Parser> parser;
+        parser = self->get_shift_estimator()->get_interface();
+        parser->process(config);
+    }
+
+    // returns TOAs as a tuple of strings in python
+    std::vector<std::string> get_toas() {
+        std::vector<Tempo::toa> toas;
+        self->get_toas(toas);
+        std::vector<std::string> result;
+        for (int i=0; i<toas.size(); i++) {
+            char toatmp[2048];
+            toas[i].unload(toatmp);
+            result.push_back(toatmp);
+        }
+        return result;
+    }
+
 }

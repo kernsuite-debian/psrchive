@@ -5,6 +5,7 @@ AC_PREREQ(2.57)
 AC_INIT([PSRCHIVE],[2012-12+],[psrchive-developers@lists.sourceforge.net])
 
 AC_CONFIG_AUX_DIR([config])
+AC_CONFIG_MACRO_DIR([config])
 AC_CONFIG_SRCDIR([Util/Makefile.am])
 
 AC_ARG_VAR([PSRHOME],    [Standard pulsar home directory])
@@ -274,6 +275,7 @@ AC_CONFIG_FILES([
 		Base/Resources/Makefile
 		Base/Formats/Makefile
 		Base/Formats/EPN/Makefile
+		Base/Formats/EPOS/Makefile
 		Base/Formats/Timer/Makefile
 		Base/Formats/PSRFITS/Makefile
 		Base/Formats/PuMa/Makefile
@@ -284,6 +286,7 @@ AC_CONFIG_FILES([
                 Base/Formats/ASP/Makefile
 		Base/Formats/UVM/Makefile
 		Base/Formats/UVM/uvmlib/Makefile
+		Base/Formats/pdv_KtZ/Makefile
 		Base/Applications/Makefile
 		More/Makefile
 		More/General/Makefile
